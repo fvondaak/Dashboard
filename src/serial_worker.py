@@ -53,7 +53,13 @@ class PortReader():
 # Still missing: What to do if start sequence is split between two chunks
 
 class PacketParser:
-    def __init__(self, start_sequence: bytearray, sample_size: int, packet_length: int, max_samples: int):
+    def __init__(
+            self,
+            start_sequence: bytearray,
+            sample_size: int,
+            packet_length: int,
+            max_samples: int
+            ):
         self._buffer = bytearray()
         self._start = start_sequence
         self._sample_size = sample_size
@@ -87,10 +93,12 @@ class PacketParser:
             packet = bytes(self._buffer[:self._packet_length])
             del self._buffer[:self._packet_length]
             return packet
+        
     def extract_one_packet(self):
         start_index = self.search_for_start(self._buffer)
         if start_index == -1:  # Means start sequence could not be found
             raise RuntimeError("Start sequence could not be found in buffer")
+
         packet = self.extract_packet(
             start_index=start_index,
             packet_length=self._packet_length,
@@ -100,18 +108,32 @@ class PacketParser:
 
 class BlockAssembler():
     def __init__(
-            self, packet_format: struct.Struct):
-        self._buffer = np.zeros((2, 200, 5), dtype=bytes)  # Hardcoded buffer size
+            self,
+            packet_format: struct.Struct
+            ):
+        self._buffer_raw_packets = np.zeros((2,200), dtype=bytes)
+        self._buffer_decoded = np.zeros((2, 200, 5), dtype=np.int16)  # decoded buffer (buffer_id, N samples, index and channels)
         self._packet_format = packet_format
 
-    def decode_package(self, packet: bytearray):
+    def decode_package(self, packet: bytes):
         values = self._packet_format.unpack(packet[2:])  # Unpack packet excluding the startcode
         return np.asarray(values, dtype=np.int16)
-    
+
+    def store_in_buffer(self, packet: bytes, buffer_id: int):
+        decoded = self.decode_package(packet)
+        for index, value in iter(decoded[1:]):
+            self._buffer_decoded[buffer_id, decoded[0], index] = value
+
     def check_last_sample(self, buffer_id: int):
         if buffer_id > 2 or buffer_id < 1:
             raise ValueError("bufferID has to be inside [1,2] for two buffers")
         pass  # Is supposed to check if the last sample of a buffer is a valid packet with sample number 199
 
+    def buffer_one_is_full(self):
+        pass
+
+    def buffer_two_is_full(self):
+        pass
+    
     def is_full(self) -> tuple:  # Is supposed to return True, and the buffer_id of the buffer that is full
         pass
