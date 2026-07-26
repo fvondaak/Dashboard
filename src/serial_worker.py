@@ -1,6 +1,6 @@
 import serial
 import numpy as np
-
+import struct
 
 class PortReader():
     def __init__(
@@ -50,6 +50,8 @@ class PortReader():
         '''returns True if port is open'''
         return self.serial_instance.is_open
 
+# Still missing: What to do if start sequence is split between two chunks
+
 class PacketParser:
     def __init__(self, start_sequence: bytearray, sample_size: int, packet_length: int, max_samples: int):
         self._buffer = bytearray()
@@ -95,3 +97,21 @@ class PacketParser:
             max_samples=self._max_samples
             )
         return packet
+
+class BlockAssembler():
+    def __init__(
+            self, packet_format: struct.Struct):
+        self._buffer = np.zeros((2, 200, 5), dtype=bytes)  # Hardcoded buffer size
+        self._packet_format = packet_format
+
+    def decode_package(self, packet: bytearray):
+        values = self._packet_format.unpack(packet[2:])  # Unpack packet excluding the startcode
+        return np.asarray(values, dtype=np.int16)
+    
+    def check_last_sample(self, buffer_id: int):
+        if buffer_id > 2 or buffer_id < 1:
+            raise ValueError("bufferID has to be inside [1,2] for two buffers")
+        pass  # Is supposed to check if the last sample of a buffer is a valid packet with sample number 199
+
+    def is_full(self) -> tuple:  # Is supposed to return True, and the buffer_id of the buffer that is full
+        pass
