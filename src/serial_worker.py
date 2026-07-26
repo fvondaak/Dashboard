@@ -62,9 +62,9 @@ class PacketParser:
         '''function that appends chunck to bytearray'''
         self._buffer += bytearray(chunk)
 
-    def search_for_start(self, start: bytearray, byte_array: bytearray) -> int:
+    def search_for_start(self, start: bytearray) -> int:
         ''' returns index of the start sequence inside the bytearray'''
-        return byte_array.find(start)
+        return self._buffer.find(start)
 
     def verify_byte_array(self, packet: bytearray, max_samples):
         ''' function that verifies that start sequence is present 
@@ -80,10 +80,18 @@ class PacketParser:
         else:
             return False
         
-    def extract_packet(self, array: bytearray, start_index: int, packet_length: int, max_samples):
-        if self.verify_byte_array(array[start_index:start_index+packet_length], max_samples=self._max_samples) is True:
+    def extract_packet(self, start_index: int, packet_length: int, max_samples: int):
+        if self.verify_byte_array(self._buffer[start_index:start_index+packet_length], max_samples=self._max_samples) is True:
             packet = bytes(self._buffer[:self._packet_length])
             del self._buffer[:self._packet_length]
             return packet
-        
-    
+    def extract_one_packet(self):
+        start_index = self.search_for_start(self._buffer)
+        if start_index == -1:  # Means start sequence could not be found
+            raise RuntimeError("Start sequence could not be found in buffer")
+        packet = self.extract_packet(
+            start_index=start_index,
+            packet_length=self._packet_length,
+            max_samples=self._max_samples
+            )
+        return packet
