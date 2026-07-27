@@ -127,13 +127,14 @@ class BlockAssembler():
     def check_last_sample(self, buffer_id: int):
         if buffer_id > 2 or buffer_id < 1:
             raise ValueError("bufferID has to be inside [1,2] for two buffers")
-        pass  # Is supposed to check if the last sample of a buffer is a valid packet with sample number 199
-
-    def buffer_one_is_full(self):
-        pass
-
-    def buffer_two_is_full(self):
-        pass
+        if int.from_bytes(self._buffer_raw_packets[buffer_id,199,3:5]) == 199:
+            return True
+        return False
     
-    def is_full(self) -> tuple:  # Is supposed to return True, and the buffer_id of the buffer that is full
-        pass
+    def is_full(self) -> tuple:  # (True, True) if both buffers are full, (True, False) if buffer one full and buffer two not full
+        return (self.check_last_sample(buffer_id=1), self.check_last_sample(buffer_id=2))
+
+    def clear_buffer(self, buffer_id: int):
+        buffer_full_state = self.is_full()
+        if buffer_full_state[buffer_id] == True:
+            self._buffer_raw_packets[buffer_id,:,:] = 0  # set all elements in that buffer to 0
