@@ -111,7 +111,6 @@ class BlockAssembler():
             self,
             packet_format: struct.Struct
             ):
-        self._buffer_raw_packets = np.zeros((2,200), dtype=bytes)
         self._buffer_decoded = np.zeros((2, 200, 5), dtype=np.int16)  # decoded buffer (buffer_id, N samples, index and channels)
         self._packet_format = packet_format
 
@@ -119,7 +118,7 @@ class BlockAssembler():
         values = self._packet_format.unpack(packet[2:])  # Unpack packet excluding the startcode
         return np.asarray(values, dtype=np.int16)
 
-    def store_in_buffer(self, packet: bytes, buffer_id: int):
+    def write_in_buffer(self, packet: bytes, buffer_id: int):
         decoded = self.decode_package(packet)
         for index, value in iter(decoded[1:]):
             self._buffer_decoded[buffer_id, decoded[0], index] = value
@@ -127,7 +126,7 @@ class BlockAssembler():
     def check_last_sample(self, buffer_id: int):
         if buffer_id > 2 or buffer_id < 1:
             raise ValueError("bufferID has to be inside [1,2] for two buffers")
-        if int.from_bytes(self._buffer_raw_packets[buffer_id,199,3:5]) == 199:
+        if self._buffer_decoded[buffer_id,199,0] == 199:
             return True
         return False
     
@@ -137,4 +136,8 @@ class BlockAssembler():
     def clear_buffer(self, buffer_id: int):
         buffer_full_state = self.is_full()
         if buffer_full_state[buffer_id] == True:
-            self._buffer_raw_packets[buffer_id,:,:] = 0  # set all elements in that buffer to 0
+            self._buffer_decoded[buffer_id,:,:] = 1  # set all elements in that buffer to 0
+
+    def is_first_sample(self, packet: bytes):
+        return int.from_bytes(packet[2:4]) == 0
+
